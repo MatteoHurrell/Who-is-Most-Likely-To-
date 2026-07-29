@@ -269,14 +269,23 @@ export function SurveyApp() {
             </section>
           ) : (
             <>
+              <section
+                className="survey-warnings"
+                aria-label="Important survey instructions"
+              >
+                <div>
+                  <strong>Final submission</strong>
+                  <span>You cannot change your answers after you submit.</span>
+                </div>
+                <div>
+                  <strong>Complete it in one go</strong>
+                  <span>Leaving before you submit will erase your progress.</span>
+                </div>
+              </section>
+
               <header className="survey-hero">
                 <div>
-                  <p className="eyebrow">The unofficial office awards</p>
                   <h1>Who’s most likely to…?</h1>
-                  <p className="hero-copy">
-                    Pick one teammate for every prompt. Go with your gut—there
-                    are no wrong answers, and your ballot is anonymous.
-                  </p>
                 </div>
                 <div className="progress-card">
                   <div className="progress-topline">

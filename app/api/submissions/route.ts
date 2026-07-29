@@ -1,7 +1,8 @@
-import { ensureSurveySchema, getD1 } from "../../../db/d1";
+import { ensureSurveySchema, getDatabase } from "../../../db/turso";
 import { nominees, questions } from "../../../data/survey";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -29,22 +30,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const db = getD1();
+    const db = getDatabase();
     await ensureSurveySchema(db);
 
     const submissionId = crypto.randomUUID();
     const createdAt = Date.now();
     await db.batch([
-      db
-        .prepare("INSERT INTO submissions (id, created_at) VALUES (?, ?)")
-        .bind(submissionId, createdAt),
-      ...answers.map((answer, index) =>
-        db
-          .prepare(
-            "INSERT INTO votes (submission_id, question_id, nominee, created_at) VALUES (?, ?, ?, ?)",
-          )
-          .bind(submissionId, index + 1, answer, createdAt),
-      ),
+      {
+        sql: "INSERT INTO submissions (id, created_at) VALUES (?, ?)",
+        args: [submissionId, createdAt],
+      },
+      ...answers.map((answer, index) => ({
+        sql: "INSERT INTO votes (submission_id, question_id, nominee, created_at) VALUES (?, ?, ?, ?)",
+        args: [submissionId, index + 1, answer as string, createdAt],
+      })),
     ]);
 
     return Response.json({ ok: true }, { status: 201 });

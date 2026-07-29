@@ -1,8 +1,8 @@
-import { env } from "cloudflare:workers";
-import { ensureSurveySchema, getD1 } from "../../../db/d1";
+import { ensureSurveySchema, getDatabase } from "../../../db/turso";
 import { questions } from "../../../data/survey";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 type VoteCount = {
   question_id: number;
@@ -13,7 +13,7 @@ type VoteCount = {
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as { pin?: unknown };
-    const resultsPin = (env as unknown as { RESULTS_PIN?: string }).RESULTS_PIN;
+    const resultsPin = process.env.RESULTS_PIN;
 
     if (
       typeof payload.pin !== "string" ||
@@ -29,18 +29,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const db = getD1();
+    const db = getDatabase();
     await ensureSurveySchema(db);
-    const query = await db
-      .prepare(
-        `SELECT question_id, nominee, COUNT(*) AS votes
-         FROM votes
-         GROUP BY question_id, nominee
-         ORDER BY question_id ASC, votes DESC, nominee ASC`,
-      )
-      .all<VoteCount>();
+    const query = await db.execute({
+      sql: `SELECT question_id, nominee, COUNT(*) AS votes
+        FROM votes
+        GROUP BY question_id, nominee
+        ORDER BY question_id ASC, votes DESC, nominee ASC`,
+      args: [],
+    });
 
-    const rows = query.results ?? [];
+    const rows = query.rows as unknown as VoteCount[];
     const results = questions.map((_, questionIndex) => {
       const questionId = questionIndex + 1;
       const questionRows = rows.filter(

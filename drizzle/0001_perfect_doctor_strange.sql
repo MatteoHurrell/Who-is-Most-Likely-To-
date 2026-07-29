@@ -1,1 +1,0 @@
-CREATE INDEX `votes_question_nominee_idx` ON `votes` (`question_id`,`nominee`);

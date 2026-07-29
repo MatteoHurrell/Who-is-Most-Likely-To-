@@ -11,6 +11,10 @@ and a PIN-protected results dashboard.
 - Every question must be answered before submission
 - Dedicated submission confirmation screen
 - PIN-protected results tab
+- PIN-protected Host control panel
+- Separate test ballots that never affect live totals
+- Persistent voting and results-publication state
+- Recoverable real-ballot deletion
 - Winner, vote total, count, percentage, and pie chart for every question
 - Persistent Turso database storage
 - Responsive layout for phones and desktops
@@ -33,6 +37,8 @@ Create a local environment file with:
 TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
 RESULTS_PIN=
+HOST_PIN=
+HOST_SESSION_SECRET=
 ```
 
 Run `npm run build` to verify a production build.

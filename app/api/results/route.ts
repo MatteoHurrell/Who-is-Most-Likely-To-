@@ -1,14 +1,40 @@
 import { ensureSurveySchema, getDatabase } from "../../../db/turso";
-import { questions } from "../../../data/survey";
+import { pinsMatch } from "../../../lib/host-auth";
+import { getResults } from "../../../lib/results";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type VoteCount = {
-  question_id: number;
-  nominee: string;
-  votes: number;
-};
+async function loadRealResults() {
+  const db = getDatabase();
+  await ensureSurveySchema(db);
+  return { db, results: await getResults(db, "real") };
+}
+
+export async function GET() {
+  try {
+    const { db, results } = await loadRealResults();
+    const stateResult = await db.execute(
+      "SELECT results_public FROM site_state WHERE id = 1",
+    );
+    if (!Boolean(stateResult.rows[0]?.results_public)) {
+      return Response.json(
+        { error: "Results are locked." },
+        { status: 403, headers: { "cache-control": "no-store" } },
+      );
+    }
+
+    return Response.json(
+      { results, access: "public" },
+      { headers: { "cache-control": "no-store" } },
+    );
+  } catch {
+    return Response.json(
+      { error: "Results are unavailable." },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -18,67 +44,23 @@ export async function POST(request: Request) {
     if (
       typeof payload.pin !== "string" ||
       !resultsPin ||
-      payload.pin !== resultsPin
+      !pinsMatch(payload.pin, resultsPin)
     ) {
       return Response.json(
         { error: "The PIN is incorrect." },
-        {
-          status: 401,
-          headers: { "cache-control": "no-store" },
-        },
+        { status: 401, headers: { "cache-control": "no-store" } },
       );
     }
 
-    const db = getDatabase();
-    await ensureSurveySchema(db);
-    const query = await db.execute({
-      sql: `SELECT question_id, nominee, COUNT(*) AS votes
-        FROM votes
-        GROUP BY question_id, nominee
-        ORDER BY question_id ASC, votes DESC, nominee ASC`,
-      args: [],
-    });
-
-    const rows = query.rows as unknown as VoteCount[];
-    const results = questions.map((_, questionIndex) => {
-      const questionId = questionIndex + 1;
-      const questionRows = rows.filter(
-        (row) => Number(row.question_id) === questionId,
-      );
-      const totalVotes = questionRows.reduce(
-        (sum, row) => sum + Number(row.votes),
-        0,
-      );
-      const maxVotes = questionRows.length
-        ? Math.max(...questionRows.map((row) => Number(row.votes)))
-        : 0;
-
-      return {
-        questionId,
-        totalVotes,
-        winnerNames: questionRows
-          .filter((row) => Number(row.votes) === maxVotes && maxVotes > 0)
-          .map((row) => row.nominee),
-        nominees: questionRows.map((row) => ({
-          name: row.nominee,
-          votes: Number(row.votes),
-          percentage:
-            totalVotes === 0 ? 0 : (Number(row.votes) / totalVotes) * 100,
-        })),
-      };
-    });
-
+    const { results } = await loadRealResults();
     return Response.json(
-      { results },
+      { results, access: "private" },
       { headers: { "cache-control": "no-store" } },
     );
   } catch {
     return Response.json(
       { error: "Results are unavailable." },
-      {
-        status: 500,
-        headers: { "cache-control": "no-store" },
-      },
+      { status: 500 },
     );
   }
 }

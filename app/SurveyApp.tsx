@@ -38,6 +38,7 @@ type HostAction =
   | "hide_results"
   | "open_voting"
   | "close_voting"
+  | "seed_chart_test_data"
   | "reset_test_data"
   | "delete_real_ballots"
   | "restore_real_ballots";
@@ -932,13 +933,26 @@ function HostDashboard({
             <div>
               <span>Testing</span>
               <h2>Test without changing live totals</h2>
-              <p>Test ballots use a separate dataset.</p>
+              <p>
+                Test ballots use a separate dataset. The chart stress test
+                replaces test data with 81 ballots covering all 27 nominees.
+              </p>
             </div>
             <span className="count-badge">{state.testBallots} saved</span>
           </div>
           <div className="host-actions">
             <button type="button" className="primary-button" onClick={onStartTest}>
               Start a test ballot
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={busy}
+              onClick={() => void onAction("seed_chart_test_data")}
+            >
+              {activeAction === "seed_chart_test_data"
+                ? "Generating 81 ballots…"
+                : "Generate chart test data"}
             </button>
             <button
               type="button"

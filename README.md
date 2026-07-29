@@ -13,6 +13,7 @@ and a PIN-protected results dashboard.
 - PIN-protected results tab
 - PIN-protected Host control panel
 - Separate test ballots that never affect live totals
+- One-click 81-ballot chart stress test covering all 27 nominees
 - Persistent voting and results-publication state
 - Recoverable real-ballot deletion
 - Winner, vote total, count, percentage, and pie chart for every question

@@ -1123,6 +1123,7 @@ h1 {
 }
 
 .chart-legend {
+  align-content: start;
   display: grid;
   gap: 9px 18px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1135,6 +1136,7 @@ h1 {
   font-size: 11px;
   gap: 8px;
   grid-template-columns: 9px minmax(0, 1fr) auto;
+  min-width: 0;
   padding: 0 0 8px;
 }
 
@@ -1146,6 +1148,10 @@ h1 {
 
 .legend-row strong {
   font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .legend-row > span:last-child {

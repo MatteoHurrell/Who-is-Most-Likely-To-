@@ -1,4 +1,5 @@
 import { ensureSurveySchema, getDatabase } from "../../../db/turso";
+import { nominees, questions } from "../../../data/survey";
 import { isHostAuthenticated } from "../../../lib/host-auth";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +10,30 @@ type HostAction =
   | "hide_results"
   | "open_voting"
   | "close_voting"
+  | "seed_chart_test_data"
   | "reset_test_data"
   | "delete_real_ballots"
   | "restore_real_ballots";
+
+const chartTestBallotCount = 81;
+const voteInsertChunkSize = 500;
+
+function getChartTestNominee(ballotIndex: number, questionIndex: number) {
+  const rotation = (questionIndex * 5) % nominees.length;
+
+  if (ballotIndex < nominees.length) {
+    return nominees[(ballotIndex + questionIndex * 3) % nominees.length];
+  }
+  if (ballotIndex < 54) return nominees[rotation];
+  if (ballotIndex < 68) return nominees[(rotation + 7) % nominees.length];
+  if (ballotIndex < 76) return nominees[(rotation + 13) % nominees.length];
+  return nominees[(rotation + 19) % nominees.length];
+}
+
+function buildValues(rowCount: number, columnCount: number) {
+  const row = `(${Array(columnCount).fill("?").join(", ")})`;
+  return Array(rowCount).fill(row).join(", ");
+}
 
 async function getHostState() {
   const db = getDatabase();
@@ -95,6 +117,51 @@ export async function POST(request: Request) {
           args: [now],
         });
         break;
+      case "seed_chart_test_data": {
+        const submissionIds = Array.from(
+          { length: chartTestBallotCount },
+          () => crypto.randomUUID(),
+        );
+        const submissionArgs = submissionIds.flatMap((id, index) => [
+          id,
+          now + index,
+        ]);
+        const voteRows = submissionIds.flatMap((submissionId, ballotIndex) =>
+          questions.map((_, questionIndex) => [
+            submissionId,
+            questionIndex + 1,
+            getChartTestNominee(ballotIndex, questionIndex),
+            now + ballotIndex,
+          ]),
+        );
+        const voteInsertStatements = [];
+
+        for (
+          let start = 0;
+          start < voteRows.length;
+          start += voteInsertChunkSize
+        ) {
+          const chunk = voteRows.slice(start, start + voteInsertChunkSize);
+          voteInsertStatements.push({
+            sql: `INSERT INTO test_votes
+              (submission_id, question_id, nominee, created_at)
+              VALUES ${buildValues(chunk.length, 4)}`,
+            args: chunk.flat(),
+          });
+        }
+
+        await db.batch([
+          { sql: "DELETE FROM test_votes", args: [] },
+          { sql: "DELETE FROM test_submissions", args: [] },
+          {
+            sql: `INSERT INTO test_submissions (id, created_at)
+              VALUES ${buildValues(submissionIds.length, 2)}`,
+            args: submissionArgs,
+          },
+          ...voteInsertStatements,
+        ]);
+        break;
+      }
       case "reset_test_data":
         await db.batch([
           { sql: "DELETE FROM test_votes", args: [] },
